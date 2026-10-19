@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { agent, connect } from "../loopra.agent.js";
+import { policy } from "../loopra-policy.js";
 
 const gateway = { url: "http://127.0.0.1:3489", v1: "http://127.0.0.1:3489/v1", key: "test-loopra-agent-key" };
 const model = { id: "example/coder", name: "Example Coder", context: 200000, output: 16000, images: true };
@@ -76,5 +77,63 @@ test("rejects incomplete inputs before Magpie writes any configuration", () => {
   }
   for (const badModel of [undefined, {}, { id: "" }, { id: " " }]) {
     assert.throws(() => connect({ gateway, model: badModel }), /Select a Magpie model/);
+  }
+});
+
+test("library targets match Loopra's existing instruction, skill and MCP readers", () => {
+  assert.deepEqual(agent.library, {
+    skills: "~/.loopra/skills", instructions: "~/.loopra/loopra.md",
+    mcp: "~/.loopra/mcp-servers.json", mcpFormat: "claude",
+  });
+});
+
+test("automatic effort selects a supported default and leaves unknown capabilities untouched", () => {
+  for (const [efforts, expected] of [
+    [["low", "medium", "high", "xhigh"], "high"],
+    [["low", "medium"], "medium"], [["xhigh"], "xhigh"],
+    [["none"], "none"], [["max"], "max"], [[], undefined], [null, undefined],
+    [["future-effort"], undefined],
+  ]) {
+    const output = connect({ gateway, model: { ...model, efforts } });
+    assert.equal(output.reasoningEffort, expected);
+    if (expected === undefined) assert.equal(Object.hasOwn(output, "reasoningEffort"), false);
+  }
+});
+
+test("auxiliary defaults reuse the selected model and find an image-capable fallback", () => {
+  const selected = { id: "example/text", images: false };
+  const output = connect({ gateway, model: selected, models: [selected, model] });
+  assert.equal(output.validationModel, selected.id);
+  assert.equal(output.validationModelChannelId, output.modelChannelId);
+  assert.equal(output.imageUnderstandingModel, model.id);
+  assert.equal(output.imageUnderstandingModelChannelId, output.modelChannelId);
+  const noVision = connect({ gateway, model: selected });
+  assert.equal(noVision.imageUnderstandingModel, "");
+  assert.equal(noVision.imageUnderstandingModelChannelId, "");
+  assert.equal(connect({ gateway, model }).imageUnderstandingModel, model.id);
+});
+
+test("local policy can select or disable auxiliaries and rejects unavailable models", () => {
+  const original = { ...policy };
+  try {
+    policy.validationModel = "other/reviewer";
+    policy.imageUnderstandingModel = "other/vision";
+    const models = [{ id: "other/reviewer" }, { id: "other/vision", images: true }];
+    const output = connect({ gateway, model, models });
+    assert.equal(output.validationModel, "other/reviewer");
+    assert.equal(output.imageUnderstandingModel, "other/vision");
+    assert.throws(() => connect({ gateway, model }), /unavailable/);
+    policy.validationModel = "none";
+    policy.imageUnderstandingModel = "none";
+    const disabled = connect({ gateway, model });
+    assert.equal(disabled.validationModel, "");
+    assert.equal(disabled.validationModelChannelId, "");
+    assert.equal(disabled.imageUnderstandingModel, "");
+    assert.equal(disabled.imageUnderstandingModelChannelId, "");
+    policy.reasoningEffort = "medium";
+    assert.equal(connect({ gateway, model: { ...model, efforts: ["medium", "high"] } }).reasoningEffort, "medium");
+    assert.throws(() => connect({ gateway, model: { ...model, efforts: ["high"] } }), /not supported/);
+  } finally {
+    Object.assign(policy, original);
   }
 });

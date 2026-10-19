@@ -1,4 +1,5 @@
 // Agent-only module: Magpie runs this in moejs, without Node or filesystem APIs.
+import { policy } from "./loopra-policy.js";
 export const agent = {
   id: "loopra",
   name: "Loopra",
@@ -9,6 +10,12 @@ export const agent = {
   format: "json",
   model: "model",
   ua: ["loopra"],
+  library: {
+    skills: "~/.loopra/skills",
+    instructions: "~/.loopra/loopra.md",
+    mcp: "~/.loopra/mcp-servers.json",
+    mcpFormat: "claude",
+  },
   notice: "请重启 Loopra 服务以加载模型渠道配置；已有会话保留自己的模型设置，请新建会话或重新选择 Magpie 渠道和模型。",
 };
 
@@ -31,6 +38,39 @@ function modelEntry(model) {
   };
 }
 
+function reasoningEffort(model) {
+  const efforts = Array.isArray(model.efforts)
+    ? model.efforts.filter((value) => typeof value === "string" && value.trim())
+    : [];
+  if (policy.reasoningEffort !== "auto") {
+    if (typeof policy.reasoningEffort !== "string" || !policy.reasoningEffort.trim()
+        || (efforts.length && !efforts.includes(policy.reasoningEffort))) {
+      throw new Error("The configured reasoningEffort is not supported by the selected Magpie model.");
+    }
+    return policy.reasoningEffort;
+  }
+  // Prefer a useful default without silently choosing the most expensive tier.
+  for (const value of ["high", "medium", "low", "minimal", "none", "xhigh", "max"]) {
+    if (efforts.includes(value)) return value;
+  }
+  // Unknown capabilities: omit the field, so Magpie restores/preserves the user's value.
+  return undefined;
+}
+
+function auxiliaryModel(setting, candidates, images) {
+  if (setting === "none") return "";
+  if (setting === "auto") {
+    const found = candidates.find((candidate) => !images || candidate.images === true);
+    return found ? found.id : "";
+  }
+  const found = candidates.find((candidate) => candidate.id === setting);
+  if (!found || (images && found.images !== true)) {
+    throw new Error("The configured " + (images ? "image understanding" : "validation")
+      + " model is unavailable or lacks the required capability: " + String(setting));
+  }
+  return found.id;
+}
+
 export function connect({ gateway, model, models = [] }) {
   if (!gateway || typeof gateway.v1 !== "string" || !gateway.v1.trim()
       || typeof gateway.key !== "string" || !gateway.key.trim()) {
@@ -43,16 +83,20 @@ export function connect({ gateway, model, models = [] }) {
   // The selected model may be absent from the catalog during a refresh.
   // Keep it first and preserve the complete provider/model ID accepted by Magpie.
   const entries = [];
+  const candidates = [];
   const seen = new Set();
   for (const candidate of [model, ...(Array.isArray(models) ? models : [])]) {
     if (!candidate || typeof candidate.id !== "string" || !candidate.id.trim()
         || seen.has(candidate.id)) continue;
     seen.add(candidate.id);
+    candidates.push(candidate);
     entries.push(modelEntry(candidate));
   }
 
   const baseUrl = gateway.v1.trim().replace(/\/+$/, "");
-  return {
+  const imageModel = auxiliaryModel(policy.imageUnderstandingModel, candidates, true);
+  const validationModel = auxiliaryModel(policy.validationModel, candidates, false);
+  const result = {
     modelChannelId: CHANNEL_ID,
     modelChannels: [{
       id: CHANNEL_ID,
@@ -70,5 +114,12 @@ export function connect({ gateway, model, models = [] }) {
     apiProtocol: "chat_completions",
     specialCompatibility: "",
     availableModels: entries.map((entry) => entry.name),
+    imageUnderstandingModel: imageModel,
+    imageUnderstandingModelChannelId: imageModel ? CHANNEL_ID : "",
+    validationModel,
+    validationModelChannelId: validationModel ? CHANNEL_ID : "",
   };
+  const effort = reasoningEffort(model);
+  if (effort !== undefined) result.reasoningEffort = effort;
+  return result;
 }

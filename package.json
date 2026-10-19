@@ -1,6 +1,6 @@
 {
   "name": "magpie-agent-loopra",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Magpie Agent plugin for Loopra model channels, model limits and image input capabilities",
   "type": "module",
   "license": "MIT",
@@ -14,7 +14,7 @@
   },
   "homepage": "https://github.com/ezdemo/magpie-agent-loopra#readme",
   "keywords": ["magpie", "magpie-agent", "loopra", "agent", "model-channels"],
-  "files": ["loopra.agent.js", "assets/loopra-logo.svg", "README.md", "LICENSE"],
+  "files": ["loopra.agent.js", "loopra-policy.js", "assets/loopra-logo.svg", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test test/agent.test.mjs",
     "test:integration": "node --test test/magpie.test.mjs"

@@ -8,7 +8,7 @@
 
 ## 安装与使用
 
-需要已安装的 Loopra，以及支持 Agent 插件的 Magpie。已用 Magpie **0.1.1285** 完成真实插件加载、模型切换和断开恢复测试，配置字段按 Loopra **26.9.91** 源码适配。
+需要已安装的 Loopra，以及支持 Agent 插件的 Magpie。已用 Magpie **0.1.1293** 完成真实插件加载、模型切换和断开恢复测试，配置字段按 Loopra **26.9.91** 源码适配。
 
 ```sh
 magpie plugin add github:ezdemo/magpie-agent-loopra
@@ -54,15 +54,55 @@ magpie loopra default
 
 渠道使用 `chat_completions`；上游供应商使用 Responses、Anthropic 等协议时，由 Magpie 网关转换。`specialCompatibility` 设为空，避免把原渠道的 OpenCode 等特殊兼容模式带到网关。插件还同步顶层 `baseUrl`、`apiKey`、`apiProtocol`、`specialCompatibility`、`availableModels`，供旧版 Loopra 使用。
 
-Magpie 模型列表刷新时会重新调用 `connect`，同步列表与能力。插件不修改 Loopra 的推理强度、工具审批、项目目录或会话数据，也不推测模型价格。Loopra 配置文件不提供逐模型推理强度列表字段，因此不写入 Magpie 的 `efforts`。
+Magpie 模型列表刷新时会重新调用 `connect`，同步列表与能力。插件不修改工具审批模式、项目目录或会话数据，也不推测模型价格。
+
+## 资源库：Skills、MCP、统一指令
+
+在 Magpie 的资源库中，将相应指令、技能、MCP 服务的目标勾选为 **Loopra**。仅安装插件不会自动把全部资源分配给 Loopra。
+
+| 资源 | 同步位置 | Loopra 如何读取 |
+| --- | --- | --- |
+| Skills | `~/.loopra/skills` | 使用现有全局技能目录；可刷新技能或重启服务 |
+| 统一指令 | `~/.loopra/loopra.md` | 现有用户级提示词入口，保留原指令，Magpie 只管理自己的标记区块 |
+| MCP | `~/.loopra/mcp-servers.json` 的 `mcpServers` 对象 | 需要下述 Loopra MCP 兼容改动；更新配置后重启服务 |
+
+**MCP 的必要前提：** Loopra 后端须包含 [Magpie 兼容改动](https://github.com/ezdemo/loopra/pull/12)。旧版管理服务只读取 `servers` 数组，无法完整处理 Magpie 写入的 `mcpServers`。兼容版合并读取两种格式，同名时 `mcpServers` 优先，保存时保留各自区段、用户扩展字段及被覆盖的原生配置；移除 Magpie 项目后原生配置重新生效。支持 stdio、SSE、HTTP/Streamable HTTP。
+
+资源分配与模型连接开关彼此独立：`magpie loopra default` 恢复模型配置；要停止下发资源，请在资源库取消 Loopra 的勾选，再同步。Magpie 负责撤回自己写入的内容，不删除你原有的指令、技能或本地 MCP。
+
+```sh
+magpie library sync
+```
+
+## 思考强度与辅助模型
+
+0.2.0 默认启用自动映射：
+
+- **思考强度：** 只从所选模型的 `efforts` 中选择，依次偏好 `high`、`medium`、`low`、`minimal`、`none`、`xhigh`、`max`。未公布可识别档位时不接管此字段，保留或恢复原设置。
+- **图片理解：** 优先使用支持图片的主模型；否则从可用模型中选择第一个明确支持图片输入的模型；都不支持时清空回退模型，避免引用失效的旧渠道。
+- **危险操作校验：** 默认使用主模型发起独立校验请求，渠道指向 Magpie。此功能会增加模型请求；不改变 Loopra 的原有工具权限与人工审批规则。
+- **恢复：** 被接管的 `reasoningEffort`、图片理解及校验模型/渠道字段均由 Magpie 备份，断开模型连接后恢复。
+
+Magpie 尚不提供自定义 Agent 控件，所以这里不会新增思考强度或辅助模型下拉框。需要固定默认值时，从本地目录安装插件并编辑 `loopra-policy.js`：
+
+```js
+export const policy = {
+  reasoningEffort: "auto",                   // auto 或模型支持的档位，如 medium
+  imageUnderstandingModel: "vendor/vision", // auto、完整模型 ID 或 none
+  validationModel: "vendor/reviewer",       // auto、完整模型 ID 或 none
+};
+```
+
+指定的辅助模型必须存在于当前 Magpie 模型列表，图片模型还必须声明支持图片。无效配置会在写入前报错。修改本地策略后重新选择模型或重新连接；直接修改 GitHub 安装包内的文件可能被后续更新覆盖。
+
+Loopra 会话中仍可调整模型、思考强度和辅助模型配置，但 Magpie 再次同步接管字段时会应用上述策略。
 
 ## 原配置与已有会话
 
 - **连接期间，`modelChannels` 临时替换为一个 Magpie 渠道。** Magpie 的 Agent 插件接口不提供原文件内容，无法合并原有渠道。原渠道由 Magpie 备份，断开后按原类型完整恢复；其他无关配置保留。
 - 连接期间请在 Magpie 管理模型。手动修改被接管的字段（包括添加 Loopra 渠道）可能在同步或恢复时被替换。需要编辑原渠道时，先断开连接。
 - 已有会话保存了自己的模型和渠道选择，修改全局默认值不会自动改写这些会话。请新建会话，或在会话里重新选择 Magpie 渠道与模型。
-- 若原来为独立校验模型或图片理解回退指定了其他渠道，连接期间这些原渠道不可用。可在 Loopra 中重新选择 Magpie 渠道里的模型，或使用支持图片输入的主模型。
-- 默认只适配模型连接；插件未声明资源库的 instructions / MCP / skills 同步。
+- 连接时会把图片理解、校验模型映射到 Magpie 渠道，断开后恢复原渠道；已有会话仍需重新选择或新建。
 
 ## 本地开发与验证
 
@@ -75,7 +115,7 @@ npm test
 npm run test:integration
 ```
 
-集成测试需要 PATH 中的 Magpie CLI；也可设置 `MAGPIE_BIN` 为其可执行文件的绝对路径。测试使用临时 HOME、USERPROFILE、应用数据目录和 XDG 目录，不改动实际 Loopra / Magpie 配置，不使用真实模型或登录信息。覆盖真实 moejs 加载、模型切换、多渠道与旧配置的断开恢复。
+集成测试需要 PATH 中的 Magpie CLI；也可设置 `MAGPIE_BIN` 为其可执行文件的绝对路径。测试使用临时 HOME、USERPROFILE、应用数据目录和 XDG 目录，不改动实际 Loopra / Magpie 配置，不使用真实模型或登录信息。覆盖真实 moejs 加载、模型切换、辅助模型字段恢复，以及资源库中技能、统一指令、MCP 的实际同步与撤回。
 
 开发时可手动安装本地目录：
 

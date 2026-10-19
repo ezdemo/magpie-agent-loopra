@@ -9,7 +9,7 @@ import test from "node:test";
 // Optional integration suite: requires a Magpie CLI supporting Agent plugins.
 // Every Magpie invocation uses its own home, config, cache and gateway address.
 test("real Magpie loads the module, switches models and restores typed config", { timeout: 180000 }, () => {
-  const root = fileURLToPath(new URL("../", import.meta.url));
+  const root = process.env.MAGPIE_PLUGIN_SPEC || fileURLToPath(new URL("../", import.meta.url));
   const home = mkdtempSync(path.join(tmpdir(), "magpie-loopra-test-"));
   const env = {
     ...process.env,
@@ -45,6 +45,10 @@ test("real Magpie loads the module, switches models and restores typed config", 
     specialCompatibility: "original-compat",
     availableModels: ["original/coder"],
     reasoningEffort: "high",
+    validationModel: "original/reviewer",
+    validationModelChannelId: "original",
+    imageUnderstandingModel: "original/vision",
+    imageUnderstandingModelChannelId: "original",
     workspaceDir: "/my/workspace",
     custom: { enabled: true, budget: 42, ignored: [1, 2] },
   };
@@ -68,6 +72,9 @@ test("real Magpie loads the module, switches models and restores typed config", 
     assert.ok(channel.models.some((entry) => entry.name === "fixture/vision"));
     assert.deepEqual(connected.custom, original.custom);
     assert.equal(connected.reasoningEffort, "high");
+    assert.equal(connected.validationModel, "fixture/coder");
+    assert.equal(connected.validationModelChannelId, "magpie");
+    assert.notEqual(connected.imageUnderstandingModel, original.imageUnderstandingModel);
     assert.match(run("loopra"), /fixture\/coder/);
 
     run("loopra", "fixture/vision");
@@ -81,7 +88,51 @@ test("real Magpie loads the module, switches models and restores typed config", 
     run("loopra", "fixture/coder");
     run("loopra", "default");
     assert.deepEqual(readConfig(), minimal);
+
+    // Seed only the sandbox's library, then use Magpie's actual sync/cleanup.
+    const settings = path.join(home, ".config", "magpie");
+    const libraryDir = path.join(settings, "library");
+    const skillDir = path.join(libraryDir, "skills", "loopra-fixture");
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: loopra-fixture\ndescription: A local test fixture\n---\nUse the fixture.\n");
+    writeFileSync(path.join(libraryDir, "instructions.md"), "Use the shared coding conventions.");
+    const promptPath = path.join(home, ".loopra", "loopra.md");
+    writeFileSync(promptPath, "# My existing preferences\n");
+    const mcpPath = path.join(home, ".loopra", "mcp-servers.json");
+    writeFileSync(mcpPath, JSON.stringify({ servers: [{ name: "mine", type: "stdio", command: "mine", enabled: false }], custom: true }));
+    const library = {
+      instructions: { agents: ["loopra"] },
+      mcp: [{ name: "library-fixture", transport: "stdio", command: "fixture-command", args: ["--test"], agents: ["loopra"] }],
+      skills: [{ name: "loopra-fixture", agents: ["loopra"] }],
+      copySkills: true,
+    };
+    const libraryPath = path.join(settings, "library.json");
+    writeFileSync(libraryPath, JSON.stringify(library));
+    run("library", "sync");
+    assert.match(readFileSync(promptPath, "utf8"), /My existing preferences/);
+    assert.match(readFileSync(promptPath, "utf8"), /shared coding conventions/);
+    assert.match(readFileSync(path.join(home, ".loopra", "skills", "loopra-fixture", "SKILL.md"), "utf8"), /Use the fixture/);
+    const syncedMcp = JSON.parse(readFileSync(mcpPath, "utf8"));
+    assert.equal(syncedMcp.mcpServers["library-fixture"].command, "fixture-command");
+    assert.equal(syncedMcp.servers[0].name, "mine");
+    assert.equal(syncedMcp.custom, true);
+
+    // Resource assignments are independent of the Agent model connection.
+    // Untick Loopra in the library to remove only library-managed content.
+    const assigned = JSON.parse(readFileSync(libraryPath, "utf8"));
+    assigned.instructions.agents = [];
+    assigned.mcp[0].agents = [];
+    assigned.skills[0].agents = [];
+    writeFileSync(libraryPath, JSON.stringify(assigned));
+    run("library", "sync");
+    assert.equal(readFileSync(promptPath, "utf8").trim(), "# My existing preferences");
+    const cleanedMcp = JSON.parse(readFileSync(mcpPath, "utf8"));
+    assert.equal(cleanedMcp.mcpServers?.["library-fixture"], undefined);
+    assert.equal(cleanedMcp.servers[0].name, "mine");
+    assert.throws(() => readFileSync(path.join(home, ".loopra", "skills", "loopra-fixture", "SKILL.md")), /ENOENT/);
   } finally {
+    assert.equal(path.dirname(path.resolve(home)), path.resolve(tmpdir()));
+    assert.ok(path.basename(home).startsWith("magpie-loopra-test-"));
     rmSync(home, { recursive: true, force: true });
   }
 });
