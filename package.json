@@ -1,6 +1,6 @@
 {
   "name": "magpie-agent-loopra",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Magpie Agent plugin for Loopra model channels, model limits and image input capabilities",
   "type": "module",
   "license": "MIT",
@@ -14,7 +14,7 @@
   },
   "homepage": "https://github.com/ezdemo/magpie-agent-loopra#readme",
   "keywords": ["magpie", "magpie-agent", "loopra", "agent", "model-channels"],
-  "files": ["loopra.agent.js", "README.md", "LICENSE"],
+  "files": ["loopra.agent.js", "assets/loopra-logo.svg", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test test/agent.test.mjs",
     "test:integration": "node --test test/magpie.test.mjs"
@@ -23,6 +23,7 @@
     "node": ">=22"
   },
   "magpie": {
-    "agent": "./loopra.agent.js"
+    "agent": "./loopra.agent.js",
+    "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsbGVkYnk9InRpdGxlIGRlc2MiPg0KICA8dGl0bGUgaWQ9InRpdGxlIj5Mb29wcmE8L3RpdGxlPg0KICA8ZGVzYyBpZD0iZGVzYyI+QSBjb21wYWN0IGxldHRlciBMIGluc2lkZSBhIGJhbGFuY2VkIHJvdW5kZWQgbG9vcC48L2Rlc2M+DQogIDxkZWZzPg0KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ibG9vcHJhLXJpbmciIHgxPSIyMCIgeTE9IjE4IiB4Mj0iNzgiIHkyPSI4MCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPg0KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzJGODBFRCIvPg0KICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNUI5Q0YyIi8+DQogICAgPC9saW5lYXJHcmFkaWVudD4NCiAgPC9kZWZzPg0KICA8cmVjdCB4PSIxNiIgeT0iMTYiIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjIxIg0KICAgICAgICBmaWxsPSJub25lIiBzdHJva2U9InVybCgjbG9vcHJhLXJpbmcpIiBzdHJva2Utd2lkdGg9IjgiLz4NCiAgPHBhdGggZD0iTTQxIDM1djIwYzAgMy44NyAzLjEzIDcgNyA3aDExIg0KICAgICAgICBmaWxsPSJub25lIiBzdHJva2U9IiMxNzNBNzAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSI2Ii8+DQo8L3N2Zz4NCg=="
   }
 }

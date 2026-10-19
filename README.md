@@ -1,5 +1,7 @@
 # Loopra Agent for Magpie
 
+<img src="assets/loopra-logo.svg" alt="Loopra" width="80" height="80">
+
 让 [Loopra](https://github.com/ezdemo/loopra) 出现在 Magpie 的 **Agent** 页面，使用 Magpie 管理的供应商、模型和路由组。适配 Loopra 的多渠道模型配置，同时兼容旧版单渠道字段。
 
 这是按 [Magpie Agent 插件规范](https://usemagpie.ai/docs/zh/plugins#agents) 编写的 Agent 插件，不需要构建、安装依赖或启动额外服务。
