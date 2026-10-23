@@ -27,7 +27,7 @@ magpie models loopra
 magpie loopra <供应商>/<模型>
 ```
 
-模型 ID 原样保留为 `供应商/模型`，路由组为 `group/<组 ID>`。在 Loopra 的模型选择器中也能切换 Magpie 提供的模型。
+模型 ID 原样保留为 `供应商/模型`，路由组为 `group/<组 ID>`。插件同时同步 Magpie 的模型展示名称，在支持 `displayName` 的 Loopra 版本中优先显示友好名称，长模型 ID 仍用于实际请求。在 Loopra 的模型选择器中也能切换 Magpie 提供的模型。
 
 断开连接：
 
@@ -48,13 +48,14 @@ magpie loopra default
 | `gateway.key` | Magpie 渠道的 `apiKey`，按 Loopra 独立统计用量 |
 | 固定渠道 ID `magpie` | `modelChannelId`、渠道的 `id` |
 | `models[].id` | `modelChannels[].models[].name` |
+| `models[].name` | `modelChannels[].models[].displayName`，去除首尾空白；为空或缺失时不写入，界面回退到模型 ID |
 | `models[].context` | `contextTokens`，未知时为 `-1` |
 | `models[].output` | `maxTokens`，未知时沿用 Loopra 默认值 `32768` |
 | `models[].images` | `imageInput`，仅明确支持时启用 |
 
 渠道使用 `chat_completions`；上游供应商使用 Responses、Anthropic 等协议时，由 Magpie 网关转换。`specialCompatibility` 设为空，避免把原渠道的 OpenCode 等特殊兼容模式带到网关。插件还同步顶层 `baseUrl`、`apiKey`、`apiProtocol`、`specialCompatibility`、`availableModels`，供旧版 Loopra 使用。
 
-Magpie 模型列表刷新时会重新调用 `connect`，同步列表与能力。插件不修改工具审批模式、项目目录或会话数据，也不推测模型价格。
+Magpie 模型列表刷新时会重新调用 `connect`，同步列表、展示名称与能力。普通模型和路由组均使用相同的名称映射；展示名称不改变默认模型、辅助模型或请求中的模型 ID。旧版 Loopra 继续使用原始 ID。插件不修改工具审批模式、项目目录或会话数据，也不推测模型价格。
 
 ## 资源库：Skills、MCP、统一指令
 

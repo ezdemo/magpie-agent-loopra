@@ -30,7 +30,7 @@ test("current and legacy Loopra configurations use the same gateway and full mod
   assert.equal(output.apiProtocol, channel.apiProtocol);
   assert.equal(output.specialCompatibility, "");
   assert.deepEqual(output.availableModels, [model.id]);
-  assert.deepEqual(channel.models, [{ name: model.id, contextTokens: 200000, maxTokens: 16000, imageInput: true }]);
+  assert.deepEqual(channel.models, [{ name: model.id, displayName: model.name, contextTokens: 200000, maxTokens: 16000, imageInput: true }]);
   assert.equal(output.model, undefined, "Magpie itself writes agent.model");
 });
 
@@ -55,6 +55,42 @@ test("unknown or invalid limits use Loopra defaults without claiming image suppo
     assert.deepEqual(output.modelChannels[0].models[0], {
       name: "test/unknown", contextTokens: -1, maxTokens: 32768, imageInput: false,
     });
+  }
+});
+
+test("display names support provider models and route groups without changing model identities", () => {
+  const selected = { ...model, name: "  编程助手 / Coder  " };
+  const models = [
+    { ...selected, name: "Stale duplicate" },
+    { id: "other/very-long-model-id", name: "编程助手 / Coder" },
+    { id: "group/daily", name: "日常智能路由" },
+  ];
+  const before = structuredClone({ selected, models });
+  const output = connect({ gateway, model: selected, models });
+  assert.deepEqual(output.modelChannels[0].models.map(({ name, displayName }) => ({ name, displayName })), [
+    { name: model.id, displayName: "编程助手 / Coder" },
+    { name: "other/very-long-model-id", displayName: "编程助手 / Coder" },
+    { name: "group/daily", displayName: "日常智能路由" },
+  ]);
+  assert.deepEqual(output.availableModels, [model.id, "other/very-long-model-id", "group/daily"]);
+  assert.equal(output.validationModel, model.id);
+  assert.equal(output.imageUnderstandingModel, model.id);
+  assert.deepEqual({ selected, models }, before);
+});
+
+test("missing, blank or invalid display names leave Loopra's model ID fallback intact", () => {
+  for (const name of [undefined, null, "", " \t\n ", 42, {}, ["Alias"]]) {
+    const output = connect({ gateway, model: { ...model, name } });
+    assert.equal(Object.hasOwn(output.modelChannels[0].models[0], "displayName"), false);
+    assert.deepEqual(output.availableModels, [model.id]);
+  }
+});
+
+test("catalog refresh updates display names and removes cleared aliases", () => {
+  for (const name of ["Old name", "新展示名", ""]) {
+    const output = connect({ gateway, model: { ...model, name } });
+    assert.equal(output.modelChannels[0].models[0].displayName, name || undefined);
+    assert.deepEqual(output.availableModels, [model.id]);
   }
 });
 

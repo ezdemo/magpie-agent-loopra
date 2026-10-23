@@ -38,7 +38,7 @@ test("real Magpie loads the module, switches models and restores typed config", 
     modelChannelId: "original",
     modelChannels: [{ id: "original", name: "Original", baseUrl: "https://original.example/v1",
       apiKey: "test-original-key", apiProtocol: "responses", specialCompatibility: "opencode",
-      models: [{ name: "original/coder", contextTokens: 128000, maxTokens: 8192, imageInput: true, price: { input: 2 } }] }],
+      models: [{ name: "original/coder", displayName: "原有编程模型", contextTokens: 128000, maxTokens: 8192, imageInput: true, price: { input: 2 } }] }],
     apiKey: "test-legacy-key",
     baseUrl: "https://legacy.example/v1",
     apiProtocol: "anthropic",
@@ -70,6 +70,11 @@ test("real Magpie loads the module, switches models and restores typed config", 
     assert.ok(channel.apiKey.length > 0 && channel.apiKey !== original.apiKey);
     assert.ok(channel.models.some((entry) => entry.name === "fixture/coder"));
     assert.ok(channel.models.some((entry) => entry.name === "fixture/vision"));
+    for (const id of ["fixture/coder", "fixture/vision"]) {
+      const entry = channel.models.find((entry) => entry.name === id);
+      assert.equal(typeof entry.displayName, "string");
+      assert.ok(entry.displayName.trim().length > 0, `${id} synchronizes its Magpie display name`);
+    }
     assert.deepEqual(connected.custom, original.custom);
     assert.equal(connected.reasoningEffort, "high");
     assert.equal(connected.validationModel, "fixture/coder");

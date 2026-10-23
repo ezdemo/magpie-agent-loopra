@@ -30,8 +30,10 @@ function positiveInt(value, fallback) {
 }
 
 function modelEntry(model) {
+  const displayName = typeof model.name === "string" ? model.name.trim() : "";
   return {
     name: model.id,
+    ...(displayName ? { displayName } : {}),
     contextTokens: positiveInt(model.context, -1),
     maxTokens: positiveInt(model.output, DEFAULT_MAX_TOKENS),
     imageInput: model.images === true,

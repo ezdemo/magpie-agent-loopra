@@ -1,7 +1,7 @@
 {
   "name": "magpie-agent-loopra",
-  "version": "0.2.0",
-  "description": "Magpie Agent plugin for Loopra model channels, model limits and image input capabilities",
+  "version": "0.2.1",
+  "description": "Magpie Agent plugin for Loopra model channels, display names, model limits and image input capabilities",
   "type": "module",
   "license": "MIT",
   "author": "ezdemo",
