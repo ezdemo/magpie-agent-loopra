@@ -5,4 +5,5 @@ export const policy = {
   reasoningEffort: "auto",
   imageUnderstandingModel: "auto",
   validationModel: "auto",
+  toolModel: "auto",
 };

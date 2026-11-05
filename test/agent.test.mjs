@@ -74,6 +74,7 @@ test("display names support provider models and route groups without changing mo
   ]);
   assert.deepEqual(output.availableModels, [model.id, "other/very-long-model-id", "group/daily"]);
   assert.equal(output.validationModel, model.id);
+  assert.equal(output.toolModel, model.id);
   assert.equal(output.imageUnderstandingModel, model.id);
   assert.deepEqual({ selected, models }, before);
 });
@@ -100,6 +101,9 @@ test("catalog refresh replaces stale models and handles missing catalogs", () =>
   assert.deepEqual(first.availableModels, ["example/coder", "old/model"]);
   assert.deepEqual(refreshed.availableModels, ["new/model"]);
   assert.equal(refreshed.modelChannelId, first.modelChannelId);
+  assert.equal(first.toolModel, "example/coder");
+  assert.equal(refreshed.toolModel, "new/model");
+  assert.equal(refreshed.toolModelChannelId, "magpie");
 });
 
 test("normalizes a trailing slash and accepts remote HTTPS gateways", () => {
@@ -141,12 +145,40 @@ test("auxiliary defaults reuse the selected model and find an image-capable fall
   const output = connect({ gateway, model: selected, models: [selected, model] });
   assert.equal(output.validationModel, selected.id);
   assert.equal(output.validationModelChannelId, output.modelChannelId);
+  assert.equal(output.toolModel, selected.id);
+  assert.equal(output.toolModelChannelId, output.modelChannelId);
   assert.equal(output.imageUnderstandingModel, model.id);
   assert.equal(output.imageUnderstandingModelChannelId, output.modelChannelId);
   const noVision = connect({ gateway, model: selected });
   assert.equal(noVision.imageUnderstandingModel, "");
   assert.equal(noVision.imageUnderstandingModelChannelId, "");
   assert.equal(connect({ gateway, model }).imageUnderstandingModel, model.id);
+});
+
+test("tool model policy selects full IDs and route groups, disables cleanly and rejects missing models", () => {
+  const original = { ...policy };
+  try {
+    for (const id of ["other/title-writer", "group/titles"]) {
+      policy.toolModel = id;
+      const output = connect({ gateway, model, models: [{ id }] });
+      assert.equal(output.toolModel, id);
+      assert.equal(output.toolModelChannelId, "magpie");
+      assert.equal(output.validationModel, model.id);
+      assert.equal(output.imageUnderstandingModel, model.id);
+      assert.throws(() => connect({ gateway, model }), /configured tool model is unavailable/);
+    }
+    policy.toolModel = "none";
+    const disabled = connect({ gateway, model });
+    assert.equal(disabled.toolModel, "");
+    assert.equal(disabled.toolModelChannelId, "");
+    policy.toolModel = "auto";
+    const selected = { id: "text/selected", images: false };
+    const automatic = connect({ gateway, model: selected });
+    assert.equal(automatic.toolModel, selected.id);
+    assert.equal(automatic.toolModelChannelId, "magpie");
+  } finally {
+    Object.assign(policy, original);
+  }
 });
 
 test("local policy can select or disable auxiliaries and rejects unavailable models", () => {

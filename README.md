@@ -82,7 +82,8 @@ magpie library sync
 - **思考强度：** 只从所选模型的 `efforts` 中选择，依次偏好 `high`、`medium`、`low`、`minimal`、`none`、`xhigh`、`max`。未公布可识别档位时不接管此字段，保留或恢复原设置。
 - **图片理解：** 优先使用支持图片的主模型；否则从可用模型中选择第一个明确支持图片输入的模型；都不支持时清空回退模型，避免引用失效的旧渠道。
 - **危险操作校验：** 默认使用主模型发起独立校验请求，渠道指向 Magpie。此功能会增加模型请求；不改变 Loopra 的原有工具权限与人工审批规则。
-- **恢复：** 被接管的 `reasoningEffort`、图片理解及校验模型/渠道字段均由 Magpie 备份，断开模型连接后恢复。
+- **工具模型：** 默认使用主模型生成会话标题，`toolModel` 和 `toolModelChannelId` 同步指向 Magpie；切换主模型时同步更新。设为 `none` 时清空这两个字段，Loopra 使用消息截取标题。
+- **恢复：** 被接管的 `reasoningEffort`、图片理解、校验及工具模型/渠道字段均由 Magpie 备份，断开模型连接后恢复；原配置没有的字段会移除。
 
 Magpie 尚不提供自定义 Agent 控件，所以这里不会新增思考强度或辅助模型下拉框。需要固定默认值时，从本地目录安装插件并编辑 `loopra-policy.js`：
 
@@ -91,6 +92,7 @@ export const policy = {
   reasoningEffort: "auto",                   // auto 或模型支持的档位，如 medium
   imageUnderstandingModel: "vendor/vision", // auto、完整模型 ID 或 none
   validationModel: "vendor/reviewer",       // auto、完整模型 ID 或 none
+  toolModel: "auto",                       // auto、完整模型 ID（含 group/ 路由组）或 none
 };
 ```
 

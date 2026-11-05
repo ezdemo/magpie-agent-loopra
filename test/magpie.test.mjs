@@ -47,6 +47,8 @@ test("real Magpie loads the module, switches models and restores typed config", 
     reasoningEffort: "high",
     validationModel: "original/reviewer",
     validationModelChannelId: "original",
+    toolModel: "original/titles",
+    toolModelChannelId: "original",
     imageUnderstandingModel: "original/vision",
     imageUnderstandingModelChannelId: "original",
     workspaceDir: "/my/workspace",
@@ -79,11 +81,15 @@ test("real Magpie loads the module, switches models and restores typed config", 
     assert.equal(connected.reasoningEffort, "high");
     assert.equal(connected.validationModel, "fixture/coder");
     assert.equal(connected.validationModelChannelId, "magpie");
+    assert.equal(connected.toolModel, "fixture/coder");
+    assert.equal(connected.toolModelChannelId, "magpie");
     assert.notEqual(connected.imageUnderstandingModel, original.imageUnderstandingModel);
     assert.match(run("loopra"), /fixture\/coder/);
 
     run("loopra", "fixture/vision");
     assert.equal(readConfig().model, "fixture/vision");
+    assert.equal(readConfig().toolModel, "fixture/vision");
+    assert.equal(readConfig().toolModelChannelId, "magpie");
     run("loopra", "default");
     assert.deepEqual(readConfig(), original, "disconnect restores the original channel array and all legacy fields");
 
@@ -91,6 +97,8 @@ test("real Magpie loads the module, switches models and restores typed config", 
     const minimal = { model: "old-model", custom: { preserve: true } };
     writeFileSync(configPath, JSON.stringify(minimal));
     run("loopra", "fixture/coder");
+    assert.equal(readConfig().toolModel, "fixture/coder");
+    assert.equal(readConfig().toolModelChannelId, "magpie");
     run("loopra", "default");
     assert.deepEqual(readConfig(), minimal);
 

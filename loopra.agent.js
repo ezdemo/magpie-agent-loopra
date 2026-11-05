@@ -59,7 +59,7 @@ function reasoningEffort(model) {
   return undefined;
 }
 
-function auxiliaryModel(setting, candidates, images) {
+function auxiliaryModel(setting, candidates, images, label) {
   if (setting === "none") return "";
   if (setting === "auto") {
     const found = candidates.find((candidate) => !images || candidate.images === true);
@@ -67,7 +67,7 @@ function auxiliaryModel(setting, candidates, images) {
   }
   const found = candidates.find((candidate) => candidate.id === setting);
   if (!found || (images && found.images !== true)) {
-    throw new Error("The configured " + (images ? "image understanding" : "validation")
+    throw new Error("The configured " + label
       + " model is unavailable or lacks the required capability: " + String(setting));
   }
   return found.id;
@@ -96,8 +96,9 @@ export function connect({ gateway, model, models = [] }) {
   }
 
   const baseUrl = gateway.v1.trim().replace(/\/+$/, "");
-  const imageModel = auxiliaryModel(policy.imageUnderstandingModel, candidates, true);
-  const validationModel = auxiliaryModel(policy.validationModel, candidates, false);
+  const imageModel = auxiliaryModel(policy.imageUnderstandingModel, candidates, true, "image understanding");
+  const validationModel = auxiliaryModel(policy.validationModel, candidates, false, "validation");
+  const toolModel = auxiliaryModel(policy.toolModel, candidates, false, "tool");
   const result = {
     modelChannelId: CHANNEL_ID,
     modelChannels: [{
@@ -120,6 +121,8 @@ export function connect({ gateway, model, models = [] }) {
     imageUnderstandingModelChannelId: imageModel ? CHANNEL_ID : "",
     validationModel,
     validationModelChannelId: validationModel ? CHANNEL_ID : "",
+    toolModel,
+    toolModelChannelId: toolModel ? CHANNEL_ID : "",
   };
   const effort = reasoningEffort(model);
   if (effort !== undefined) result.reasoningEffort = effort;
